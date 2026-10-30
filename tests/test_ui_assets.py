@@ -54,6 +54,27 @@ def test_index_references_groupable_tabulator_results_and_editor(client):
     assert 'id="sql-editor"' in html
 
 
+def test_management_controls_and_copy_dialog_are_present(client):
+    html = client.get("/").get_data(as_text=True)
+    for hook in (
+        'id="copy-dialog"',
+        'id="copy-form"',
+        'name="name"',
+    ):
+        assert hook in html or hook in (Path(__file__).parents[1] / "src" / "dbviewer" / "ui" / "static" / "js" / "app.js").read_text()
+
+    app_js = (Path(__file__).parents[1] / "src" / "dbviewer" / "ui" / "static" / "js" / "app.js").read_text()
+    assert "actions.className='row-actions'" in app_js
+    for action in ("edit-connection", "copy-connection", "delete-connection", "copy-project", "delete-project"):
+        assert f"actionButton('{action}'" in app_js
+    assert "event.stopPropagation()" in app_js
+    assert "connectionId?'PUT':'POST'" in app_js
+    assert "method:'DELETE'" in app_js
+    assert "window.confirm" in app_js
+    assert "async function selectProject(project,preserveConnection=false)" in app_js
+    assert "await selectProject(state.project,state.connection?.id!==connection.id)" in app_js
+
+
 def test_unknown_static_asset_returns_not_found(client):
     response = client.get("/static/js/not-present.js")
     assert response.status_code == 404
