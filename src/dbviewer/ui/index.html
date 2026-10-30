@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DBViewer</title>
+  <link href="https://unpkg.com/tabulator-tables@6.2.5/dist/css/tabulator_midnight.min.css" rel="stylesheet">
+  <link href="/static/css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar"><div class="brand"><span class="brand-mark">D</span><span>DBViewer</span></div><div id="connection-label">Choose a project and connection</div><button id="new-project">＋ Project</button></header>
+  <div class="layout">
+    <aside class="sidebar">
+      <section><div class="section-heading"><h2>Projects</h2><button id="refresh-projects" title="Refresh">↻</button></div><div id="projects" class="nav-list"></div></section>
+      <section><div class="section-heading"><h2>Connections</h2><button id="new-connection" disabled>＋</button></div><div id="connections" class="nav-list muted">Select a project</div></section>
+      <section><div class="section-heading"><h2>Frequent queries</h2></div><div id="frequent" class="nav-list muted">Run a query to build your list</div></section>
+      <button id="open-diff" class="secondary" disabled>Compare tables</button>
+    </aside>
+    <main class="workspace">
+      <div class="workspace-title"><div><p class="eyebrow">QUERY WORKSPACE</p><h1>Explore your data</h1></div><button id="run-query" class="primary">Run query <kbd>Ctrl ↵</kbd></button></div>
+      <textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor" placeholder="SELECT * FROM your_table LIMIT 100;"></textarea>
+      <div id="query-status" class="status">Choose a connection, then write a query.</div>
+      <div id="result-tabs" class="result-tabs"></div><div class="grid-toolbar"><label>Group by <select id="group-columns" multiple size="1" aria-label="Group by columns"></select></label><button id="export-csv" class="secondary">Export CSV</button><button id="export-json" class="secondary">Export JSON</button><input id="grid-search" placeholder="Filter all columns…" aria-label="Search results"></div><div id="result-grid"></div>
+      <section class="history-panel"><div class="section-heading"><h2>Recent executions</h2></div><div id="history" class="history-list muted">No queries yet</div></section>
+    </main>
+  </div>
+  <dialog id="project-dialog"><form method="dialog" id="project-form"><header><h2>New project</h2><button class="icon close">×</button></header><label>Project name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="3"></textarea></label><footer><button class="secondary close">Cancel</button><button class="primary" value="create">Create project</button></footer></form></dialog>
+  <dialog id="connection-dialog"><form method="dialog" id="connection-form"><header><h2>Add connection</h2><button class="icon close">×</button></header><label>Connection name<input name="name" required></label><label>Database type<select name="engine_type"><option value="sqlite">SQLite</option><option value="postgres">PostgreSQL</option><option value="mssql">SQL Server</option><option value="oracle">Oracle</option><option value="h2">H2</option></select></label><div id="connection-fields"></div><footer><button class="secondary close">Cancel</button><button class="primary" value="save">Save connection</button></footer></form></dialog>
+  <dialog id="diff-dialog" class="wide-dialog"><form method="dialog" id="diff-form"><header><h2>Compare tables</h2><button class="icon close">×</button></header><div class="form-grid"><label>Source connection<select name="source_connection_id" required></select></label><label>Source table<select name="source_table" required></select></label><label>Target connection<select name="target_connection_id" required></select></label><label>Target table<select name="target_table" required></select></label><label class="span-two">Key columns (comma separated, optional)<input name="key_columns" placeholder="Uses matching primary keys when blank"></label></div><button class="primary" id="compare-button">Compare</button></form><div id="diff-output"></div><textarea id="sql-preview" spellcheck="false" hidden></textarea><div class="diff-actions" hidden id="diff-actions"><button id="copy-sql" class="secondary">Copy SQL</button><button id="execute-sync" class="danger">Execute on target…</button></div></dialog>
+  <script src="https://unpkg.com/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+  <script src="/static/js/grid.js"></script><script src="/static/js/editor.js"></script><script src="/static/js/diff.js"></script><script src="/static/js/app.js"></script>
+</body></html>

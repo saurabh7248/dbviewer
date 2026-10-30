@@ -7,6 +7,7 @@ from src.dbviewer.connectors.base import (
     TableSchema,
 )
 from src.dbviewer.connectors.sqlite_connector import SQLiteConnector
+from src.dbviewer.connectors.factory import get_connector
 
 __all__ = [
     "BaseDatabaseConnector",
@@ -14,4 +15,5 @@ __all__ = [
     "QueryResult",
     "TableSchema",
     "SQLiteConnector",
+    "get_connector",
 ]
