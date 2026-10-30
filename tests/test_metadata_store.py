@@ -101,6 +101,63 @@ class TestMetadataStore(unittest.TestCase):
         # Delete non-existent connection returns False
         self.assertFalse(self.store.delete_connection(99999))
 
+    def test_connection_update_preserves_omitted_fields(self):
+        p = self.store.create_project("Project Preserve")
+        conn = self.store.save_connection(
+            p["id"],
+            {
+                "name": "Original Name",
+                "engine_type": "sqlite",
+                "file_path": "/tmp/orig.db",
+                "host": "localhost",
+                "port": 5432,
+                "connection_options": {"timeout": 45},
+            },
+        )
+
+        # Update only the name, leaving engine_type, file_path, etc. omitted
+        updated = self.store.save_connection(
+            p["id"],
+            {
+                "id": conn["id"],
+                "name": "Only Name Changed",
+            },
+        )
+
+        self.assertEqual(updated["id"], conn["id"])
+        self.assertEqual(updated["name"], "Only Name Changed")
+        self.assertEqual(updated["engine_type"], "sqlite")
+        self.assertEqual(updated["file_path"], "/tmp/orig.db")
+        self.assertEqual(updated["host"], "localhost")
+        self.assertEqual(updated["port"], 5432)
+        parsed_opts = json.loads(updated["connection_options_json"])
+        self.assertEqual(parsed_opts.get("timeout"), 45)
+
+    def test_connection_project_mismatch_raises_value_error(self):
+        p1 = self.store.create_project("Project 1")
+        p2 = self.store.create_project("Project 2")
+
+        conn = self.store.save_connection(
+            p1["id"],
+            {
+                "name": "Conn in P1",
+                "engine_type": "sqlite",
+            },
+        )
+
+        # Attempting to save/update under p2 with conn["id"] must raise ValueError
+        with self.assertRaises(ValueError) as ctx:
+            self.store.save_connection(
+                p2["id"],
+                {
+                    "id": conn["id"],
+                    "name": "Hijacked Conn",
+                },
+            )
+
+        self.assertIn(f"Connection {conn['id']} does not belong to project {p2['id']}", str(ctx.exception))
+
+
     def test_frequent_and_pinned_queries(self):
         p = self.store.create_project("Project B")
         conn = self.store.save_connection(p["id"], {"name": "Conn", "engine_type": "sqlite"})

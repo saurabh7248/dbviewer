@@ -137,31 +137,46 @@ class MetadataStore:
         """Save a new database connection or update an existing one."""
         now = self._now_iso()
         conn_id = connection_data.get("id")
-        name = connection_data.get("name", "")
-        engine_type = connection_data.get("engine_type", "")
-        host = connection_data.get("host")
-        port = connection_data.get("port")
-        database_name = connection_data.get("database_name")
-        username = connection_data.get("username")
-        password_encrypted = connection_data.get("password_encrypted") or connection_data.get("password")
-        file_path = connection_data.get("file_path")
-
-        options = connection_data.get("connection_options_json")
-        if options is None:
-            raw_options = connection_data.get("options") or connection_data.get("connection_options")
-            options = json.dumps(raw_options) if raw_options is not None else "{}"
-        elif isinstance(options, dict):
-            options = json.dumps(options)
 
         with self._lock:
             with self._conn:
                 if conn_id is not None:
-                    # Check if connection exists
+                    # Check if connection exists globally
                     existing = self._conn.execute(
-                        "SELECT id FROM connections WHERE id = ? AND project_id = ?",
-                        (conn_id, project_id),
+                        "SELECT * FROM connections WHERE id = ?",
+                        (conn_id,),
                     ).fetchone()
+
                     if existing:
+                        if existing["project_id"] != project_id:
+                            raise ValueError(
+                                f"Connection {conn_id} does not belong to project {project_id}"
+                            )
+
+                        # Merge attributes: preserve existing values for omitted keys
+                        name = connection_data["name"] if "name" in connection_data else existing["name"]
+                        engine_type = connection_data["engine_type"] if "engine_type" in connection_data else existing["engine_type"]
+                        host = connection_data["host"] if "host" in connection_data else existing["host"]
+                        port = connection_data["port"] if "port" in connection_data else existing["port"]
+                        database_name = connection_data["database_name"] if "database_name" in connection_data else existing["database_name"]
+                        username = connection_data["username"] if "username" in connection_data else existing["username"]
+                        if "password_encrypted" in connection_data:
+                            password_encrypted = connection_data["password_encrypted"]
+                        elif "password" in connection_data:
+                            password_encrypted = connection_data["password"]
+                        else:
+                            password_encrypted = existing["password_encrypted"]
+                        file_path = connection_data["file_path"] if "file_path" in connection_data else existing["file_path"]
+
+                        if "connection_options_json" in connection_data:
+                            raw = connection_data["connection_options_json"]
+                            options = json.dumps(raw) if isinstance(raw, dict) else raw
+                        elif "options" in connection_data or "connection_options" in connection_data:
+                            raw = connection_data.get("options") or connection_data.get("connection_options")
+                            options = json.dumps(raw) if raw is not None else "{}"
+                        else:
+                            options = existing["connection_options_json"]
+
                         self._conn.execute(
                             """
                             UPDATE connections
@@ -186,6 +201,21 @@ class MetadataStore:
                         )
                         saved_id = conn_id
                     else:
+                        name = connection_data.get("name", "")
+                        engine_type = connection_data.get("engine_type", "")
+                        host = connection_data.get("host")
+                        port = connection_data.get("port")
+                        database_name = connection_data.get("database_name")
+                        username = connection_data.get("username")
+                        password_encrypted = connection_data.get("password_encrypted") or connection_data.get("password")
+                        file_path = connection_data.get("file_path")
+                        options = connection_data.get("connection_options_json")
+                        if options is None:
+                            raw_options = connection_data.get("options") or connection_data.get("connection_options")
+                            options = json.dumps(raw_options) if raw_options is not None else "{}"
+                        elif isinstance(options, dict):
+                            options = json.dumps(options)
+
                         cursor = self._conn.execute(
                             """
                             INSERT INTO connections (
@@ -212,6 +242,21 @@ class MetadataStore:
                         )
                         saved_id = cursor.lastrowid
                 else:
+                    name = connection_data.get("name", "")
+                    engine_type = connection_data.get("engine_type", "")
+                    host = connection_data.get("host")
+                    port = connection_data.get("port")
+                    database_name = connection_data.get("database_name")
+                    username = connection_data.get("username")
+                    password_encrypted = connection_data.get("password_encrypted") or connection_data.get("password")
+                    file_path = connection_data.get("file_path")
+                    options = connection_data.get("connection_options_json")
+                    if options is None:
+                        raw_options = connection_data.get("options") or connection_data.get("connection_options")
+                        options = json.dumps(raw_options) if raw_options is not None else "{}"
+                    elif isinstance(options, dict):
+                        options = json.dumps(options)
+
                     cursor = self._conn.execute(
                         """
                         INSERT INTO connections (
