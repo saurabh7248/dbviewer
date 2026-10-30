@@ -1,0 +1,6 @@
+.superpowers/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+!sample.db
