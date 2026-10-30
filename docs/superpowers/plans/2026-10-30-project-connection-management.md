@@ -44,7 +44,7 @@
 - [x] **Step 2: Run** `pytest tests/test_metadata_store.py -q` and confirm the new assertions fail for missing behavior.
 - [x] **Step 3: Implement** normalized name validation, unique indexes on `projects(lower(trim(name)))` and `connections(project_id, lower(trim(name)))`, and transactional copy methods. Before creating indexes on an existing DB, detect existing normalized duplicates and raise a clear migration error naming the collision instead of silently changing user data.
 - [x] **Step 4: Run** `pytest tests/test_metadata_store.py -q`; all storage tests pass.
-- [ ] **Step 5: Commit** as `feat: enforce unique project and connection names` (blocked: `.git` is read-only in the workspace sandbox).
+- [x] **Step 5: Commit** as `feat: enforce unique project and connection names` (`4445ce0`).
 
 ### Task 2: Management API routes and safe edit records
 
@@ -62,7 +62,7 @@
 - [x] **Step 2: Run** `pytest tests/test_api.py -q`. (Focused green run on resume: 17 passed; expected RED output was not recorded before interruption.)
 - [x] **Step 3: Implement** the routes with project ownership checks, safe serialization, and HTTP 400 validation responses.
 - [x] **Step 4: Run** `pytest tests/test_api.py -q`; all API tests pass.
-- [ ] **Step 5: Commit** as `feat: expose project and connection management APIs` (blocked: `.git` is read-only in this workspace).
+- [x] **Step 5: Commit** as `feat: expose project and connection management APIs` (`066723d`).
 
 ### Task 3: Sidebar actions and named copy/edit dialogs
 
@@ -80,12 +80,12 @@
 - [x] **Step 2: Run** `pytest tests/test_ui_assets.py -q` and confirm the new assertions fail. (Observed expected missing-dialog failure on first run.)
 - [x] **Step 3: Implement** project copy/delete controls and connection edit/copy/delete controls. Stop action propagation. Confirm destructive deletes. On edit, load safe connection data, keep password blank, send update by PUT, and preserve blank password semantics. Copy dialogs require a user-entered name and display API uniqueness errors. Refresh lists and clear stale current-connection state after deletion.
 - [x] **Step 4: Run** `pytest tests/test_ui_assets.py -q` and any focused JS check available.
-- [ ] **Step 5: Commit** as `feat: add project and connection management controls` (blocked: `.git` is read-only in this workspace).
+- [x] **Step 5: Commit** as `feat: add project and connection management controls` (`a6b91f7`).
 
 ### Task 4: Whole-change verification and review
 
 **Files:** all files changed in Tasks 1–3.
 
 - [x] Run `pytest -q`, `node --check src/dbviewer/ui/static/js/app.js`, and `git diff --check`.
-- [ ] Review the whole diff against the design, especially migration behavior, transaction boundaries, secret handling, and stale UI selection after deletion.
-- [ ] Commit any required fixes and record final verification evidence (commit unavailable because `.git` is read-only).
+- [x] Review the whole diff against the design, especially migration behavior, transaction boundaries, secret handling, and stale UI selection after deletion. The fresh review's Important findings and rollback coverage gap were fixed before the task commits.
+- [x] Commit any required fixes and record final verification evidence. The three task commits include the fixes; final verification: `pytest -q` (113 passed), `node --check src/dbviewer/ui/static/js/app.js`, and `git diff --check` passed.
