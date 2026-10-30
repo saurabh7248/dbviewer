@@ -246,3 +246,110 @@ def test_query_execution_error_is_returned_and_recorded(api, tmp_path):
     history = client.get(f"/api/projects/{project['id']}/queries/history").get_json()
     assert history[0]["status"] == "ERROR"
     assert "no such table" in history[0]["error_message"]
+
+
+def test_project_copy_returns_new_project_and_never_exposes_connection_credentials(api, tmp_path):
+    client, store = api
+    source = make_project(client, "Source")
+    connection = store.save_connection(
+        source["id"],
+        {
+            "name": "Warehouse",
+            "engine_type": "sqlite",
+            "file_path": str(tmp_path / "warehouse.sqlite"),
+            "password_encrypted": "stored-secret",
+        },
+    )
+
+    copied = client.post(f"/api/projects/{source['id']}/copy", json={"name": "  Destination  "})
+
+    assert copied.status_code == 201
+    assert copied.get_json()["name"] == "Destination"
+    copied_connections = client.get(f"/api/projects/{copied.get_json()['id']}/connections")
+    assert copied_connections.status_code == 200
+    assert copied_connections.get_json()[0]["name"] == connection["name"]
+    assert "password_encrypted" not in copied_connections.get_json()[0]
+    assert "password" not in copied_connections.get_json()[0]
+
+
+def test_project_copy_rejects_missing_sources_and_duplicate_names(api):
+    client, _ = api
+    source = make_project(client, "Source")
+    make_project(client, "Destination")
+
+    missing = client.post("/api/projects/999/copy", json={"name": "New project"})
+    collision = client.post(f"/api/projects/{source['id']}/copy", json={"name": " destination "})
+    invalid = client.post(f"/api/projects/{source['id']}/copy", json={})
+
+    assert missing.status_code == 404
+    assert collision.status_code == 400
+    assert "already exists" in collision.get_json()["error"]
+    assert invalid.status_code == 400
+
+
+def test_connection_management_routes_are_safe_and_preserve_omitted_password(api, tmp_path):
+    client, store = api
+    project = make_project(client)
+    connection = store.save_connection(
+        project["id"],
+        {
+            "name": "Original",
+            "engine_type": "sqlite",
+            "file_path": str(tmp_path / "original.sqlite"),
+            "password_encrypted": "stored-secret",
+        },
+    )
+    route = f"/api/projects/{project['id']}/connections/{connection['id']}"
+
+    read = client.get(route)
+    updated = client.put(
+        route,
+        json={"name": "Updated", "file_path": str(tmp_path / "updated.sqlite"), "password": ""},
+    )
+    copied = client.post(f"{route}/copy", json={"name": "Replica"})
+
+    assert read.status_code == 200
+    assert updated.status_code == 200
+    assert updated.get_json()["name"] == "Updated"
+    assert copied.status_code == 201
+    for response in (read, updated, copied):
+        assert "password_encrypted" not in response.get_json()
+        assert "password" not in response.get_json()
+    assert store.get_connection(connection["id"])["password_encrypted"] == "stored-secret"
+    assert store.get_connection(connection["id"])["file_path"] == str(tmp_path / "updated.sqlite")
+
+
+def test_connection_management_routes_enforce_project_ownership_and_not_found(api, tmp_path):
+    client, _ = api
+    first = make_project(client, "First")
+    second = make_project(client, "Second")
+    connection = make_sqlite_connection(client, first["id"], tmp_path / "first.sqlite")
+    route = f"/api/projects/{second['id']}/connections/{connection['id']}"
+
+    assert client.get(route).status_code == 404
+    assert client.put(route, json={"name": "Stolen"}).status_code == 404
+    assert client.delete(route).status_code == 404
+    assert client.post(f"{route}/copy", json={"name": "Stolen copy"}).status_code == 404
+    assert client.get(f"/api/projects/{first['id']}/connections/999").status_code == 404
+    assert client.get("/api/projects/999/connections/999").status_code == 404
+
+
+def test_connection_copy_and_update_return_name_validation_errors(api, tmp_path):
+    client, _ = api
+    project = make_project(client)
+    original = make_sqlite_connection(client, project["id"], tmp_path / "original.sqlite", "Original")
+    replica = make_sqlite_connection(client, project["id"], tmp_path / "replica.sqlite", "Replica")
+    route = f"/api/projects/{project['id']}/connections/{original['id']}"
+
+    copy_collision = client.post(f"{route}/copy", json={"name": " replica "})
+    update_collision = client.put(route, json={"name": "REPLICA"})
+    copy_missing_name = client.post(f"{route}/copy", json={})
+    delete = client.delete(f"/api/projects/{project['id']}/connections/{replica['id']}")
+
+    assert copy_collision.status_code == 400
+    assert "already exists" in copy_collision.get_json()["error"]
+    assert update_collision.status_code == 400
+    assert "already exists" in update_collision.get_json()["error"]
+    assert copy_missing_name.status_code == 400
+    assert delete.status_code == 204
+    assert client.get(f"/api/projects/{project['id']}/connections/{replica['id']}").status_code == 404

@@ -71,6 +71,13 @@ def create_app(store=None):
     @app.delete("/api/projects/<int:project_id>")
     def delete_project(project_id): return ("",204) if store.delete_project(project_id) else (jsonify({"error":"Project not found"}),404)
 
+    @app.post("/api/projects/<int:project_id>/copy")
+    def copy_project(project_id):
+        if not store.get_project(project_id): return jsonify({"error":"Project not found"}),404
+        data=request.get_json(silent=True) or {}
+        if not data.get("name"): return jsonify({"error":"Project name is required"}),400
+        return jsonify(store.copy_project(project_id, data["name"])),201
+
     @app.get("/api/projects/<int:project_id>/connections")
     def list_connections(project_id):
         if not store.get_project(project_id): return jsonify({"error":"Project not found"}),404
@@ -83,6 +90,45 @@ def create_app(store=None):
         if not data.get("name") or not data.get("engine_type"): return jsonify({"error":"Connection name and engine_type are required"}),400
         saved=store.save_connection(project_id,data)
         return jsonify(_public_connection(saved)),201
+
+    def get_project_connection(project_id, connection_id):
+        if not store.get_project(project_id):
+            return None, (jsonify({"error":"Project not found"}),404)
+        record=store.get_connection(connection_id)
+        if record is None or record["project_id"] != project_id:
+            return None, (jsonify({"error":"Connection not found in project"}),404)
+        return record, None
+
+    @app.get("/api/projects/<int:project_id>/connections/<int:connection_id>")
+    def get_project_connection_record(project_id, connection_id):
+        record,error=get_project_connection(project_id,connection_id)
+        if error: return error
+        return jsonify(_public_connection(record))
+
+    @app.put("/api/projects/<int:project_id>/connections/<int:connection_id>")
+    def update_project_connection(project_id, connection_id):
+        record,error=get_project_connection(project_id,connection_id)
+        if error: return error
+        data=dict(request.get_json(silent=True) or {})
+        data["id"]=record["id"]
+        if data.get("password") == "": data.pop("password")
+        saved=store.save_connection(project_id,data)
+        return jsonify(_public_connection(saved))
+
+    @app.delete("/api/projects/<int:project_id>/connections/<int:connection_id>")
+    def delete_project_connection(project_id, connection_id):
+        _,error=get_project_connection(project_id,connection_id)
+        if error: return error
+        store.delete_connection(connection_id)
+        return "",204
+
+    @app.post("/api/projects/<int:project_id>/connections/<int:connection_id>/copy")
+    def copy_project_connection(project_id, connection_id):
+        _,error=get_project_connection(project_id,connection_id)
+        if error: return error
+        data=request.get_json(silent=True) or {}
+        if not data.get("name"): return jsonify({"error":"Connection name is required"}),400
+        return jsonify(_public_connection(store.copy_connection(project_id,connection_id,data["name"]))),201
 
     @app.post("/api/connections/test")
     def test_connection():
