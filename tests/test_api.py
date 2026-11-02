@@ -248,6 +248,25 @@ def test_query_execution_error_is_returned_and_recorded(api, tmp_path):
     assert "no such table" in history[0]["error_message"]
 
 
+def test_compare_all_matches_tables_and_returns_aggregated_summary(api, tmp_path):
+    client, _ = api
+    db_path = tmp_path / "test.sqlite"
+    import sqlite3
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("INSERT INTO users VALUES (1, 'Alice')")
+    conn.commit()
+    conn.close()
+    project = make_project(client)
+    conn1 = make_sqlite_connection(client, project["id"], db_path, "DB1")
+    conn2 = make_sqlite_connection(client, project["id"], db_path, "DB2")
+    response = client.post("/api/diff/compare-all", json={"source_connection_id": conn1["id"], "target_connection_id": conn2["id"]})
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert "table_results" in payload
+    assert payload["summary"]["tables_compared"] >= 1
+
+
 def test_project_copy_returns_new_project_and_never_exposes_connection_credentials(api, tmp_path):
     client, store = api
     source = make_project(client, "Source")

@@ -81,6 +81,34 @@ class TableComparator:
             if key not in src: deletes.append(RowDiff(key_dict(key), "DELETE", dict(row)))
         return inserts, updates, deletes
 
+    def compare_connections(self, source_conn: BaseDatabaseConnector, target_conn: BaseDatabaseConnector, user_keys=None) -> dict:
+        source_tables = set(source_conn.get_tables())
+        target_tables = set(target_conn.get_tables())
+        matched = sorted(source_tables & target_tables)
+        results = []
+        total_inserts = total_updates = total_deletes = total_schema_changes = 0
+        for table in matched:
+            try:
+                result = self.compare_tables(source_conn, table, target_conn, table, user_keys)
+                results.append({"table": table, "diff": result})
+                total_inserts += len(result.inserts)
+                total_updates += len(result.updates)
+                total_deletes += len(result.deletes)
+                total_schema_changes += len(result.schema_diff.missing_in_target) + len(result.schema_diff.extra_in_target) + len(result.schema_diff.type_mismatches)
+            except Exception as exc:
+                results.append({"table": table, "error": str(exc)})
+        return {
+            "table_results": results,
+            "summary": {
+                "inserts": total_inserts,
+                "updates": total_updates,
+                "deletes": total_deletes,
+                "schema_changes": total_schema_changes,
+                "tables_compared": len([r for r in results if "diff" in r and not r.get("error")]),
+                "errors": sum(1 for r in results if "error" in r),
+            }
+        }
+
     def compare_tables(self, source_conn: BaseDatabaseConnector, source_table: str, target_conn: BaseDatabaseConnector, target_table: str, user_keys=None) -> TableDiffResult:
         source_schema = source_conn.get_table_schema(source_table)
         target_schema = target_conn.get_table_schema(target_table)

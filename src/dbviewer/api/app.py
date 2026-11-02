@@ -192,6 +192,15 @@ def create_app(store=None):
         token=str(__import__("uuid").uuid4()); diffs[token]=(result,target_record)
         return jsonify({"diff_id":token,"diff":_jsonable(result)})
 
+    @app.post("/api/diff/compare-all")
+    def compare_all():
+        data=request.get_json(silent=True) or {}
+        source_record,source=get_connection_or_404(int(data.get("source_connection_id",0)))
+        target_record,target=get_connection_or_404(int(data.get("target_connection_id",0)))
+        if source_record is None or target_record is None: return jsonify({"error":"Source or target connection not found"}),404
+        result=comparator.compare_connections(source,target,data.get("key_columns"))
+        return jsonify({"table_results":[{"table":r["table"],"diff":_jsonable(r.get("diff")),"error":r.get("error")} for r in result["table_results"]],"summary":result["summary"]})
+
     @app.post("/api/diff/generate-sql")
     def generate_sql():
         data=request.get_json(silent=True) or {}
