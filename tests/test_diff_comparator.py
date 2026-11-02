@@ -24,6 +24,34 @@ def test_schema_comparison_tracks_missing_extra_and_type_mismatch():
     assert diff.type_mismatches == [("name", "VARCHAR(100)", "TEXT")]
 
 
+def test_all_column_fallback_when_no_pk_and_no_keys():
+    source = TableSchema("items", [
+        ColumnInfo("a", "INTEGER", False),
+        ColumnInfo("b", "TEXT", False),
+    ], [])
+    target = TableSchema("items", [
+        ColumnInfo("a", "INT", False),
+        ColumnInfo("b", "TEXT", False),
+    ], [])
+    comparator = TableComparator()
+    keys = comparator.resolve_keys(source, target, user_keys=None)
+    assert keys == ["a", "b"]
+
+
+def test_all_column_fallback_raises_when_target_missing_column():
+    source = TableSchema("items", [
+        ColumnInfo("a", "INTEGER", False),
+        ColumnInfo("b", "TEXT", False),
+    ], [])
+    target = TableSchema("items", [
+        ColumnInfo("a", "INT", False),
+    ], [])
+    comparator = TableComparator()
+    with pytest.raises(ValueError) as exc_info:
+        comparator.resolve_keys(source, target, user_keys=None)
+    assert "missing" in str(exc_info.value)
+
+
 def test_data_comparison_finds_inserts_updates_and_target_only_deletes():
     source = [
         {"id": 1, "name": "same", "role": "Admin"},
@@ -44,12 +72,12 @@ def test_data_comparison_finds_inserts_updates_and_target_only_deletes():
     assert [item.key_values for item in deletes] == [{"id": 4}]
 
 
-def test_missing_primary_key_requires_user_keys_and_validates_them():
+def test_missing_primary_key_fallback_to_all_columns_and_validates_them():
     schema = TableSchema("logs", [ColumnInfo("msg", "TEXT")], [])
     comparator = TableComparator()
 
-    with pytest.raises(MissingPrimaryKeyError, match="provide user-selected"):
-        comparator.resolve_keys(schema, schema)
+    # Fallback to all columns when no PK/user keys
+    assert comparator.resolve_keys(schema, schema) == ["msg"]
     assert comparator.resolve_keys(schema, schema, ["msg"]) == ["msg"]
     with pytest.raises(MissingPrimaryKeyError, match="missing from one or both"):
         comparator.resolve_keys(schema, schema, ["unknown"])
