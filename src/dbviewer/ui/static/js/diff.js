@@ -7,6 +7,7 @@ window.DBDiff = (() => {
   async function refreshTables(which){const data=new FormData(form()),id=data.get(`${which}_connection_id`),select=form().elements[`${which}_table`];try{fill(select,await tables(id));}catch(e){fill(select,[]);window.DBApp.status(e.message,true);}}
   async function init(){const dialog=document.querySelector('#diff-dialog');document.querySelector('#open-diff').onclick=async()=>{await populate();dialog.showModal();};
     form().elements.source_connection_id.onchange=()=>refreshTables('source');form().elements.target_connection_id.onchange=()=>refreshTables('target');
+    form().elements.source_table.onchange=async()=>{const sourceTable=form().elements.source_table.value,targetSelect=form().elements.target_table;const targetTables=await (async()=>{try{return await tables(form().elements.target_connection_id.value);}catch{return[];}})();if(targetTables.includes(sourceTable)&&sourceTable){const opts=Array.from(targetSelect.options).map(o=>o.value);if(opts.includes(sourceTable)){targetSelect.value=sourceTable;}}};
     document.querySelector('#compare-button').onclick=compare;document.querySelector('#copy-sql').onclick=()=>navigator.clipboard.writeText(document.querySelector('#sql-preview').value);
     document.querySelector('#execute-sync').onclick=execute;
   }
