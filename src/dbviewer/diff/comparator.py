@@ -41,7 +41,13 @@ class TableComparator:
             source_keys, target_keys = source_schema.primary_keys, target_schema.primary_keys
             keys = source_keys if source_keys and source_keys == target_keys else []
         if not keys:
-            raise MissingPrimaryKeyError("No matching primary key; provide user-selected key columns")
+            # Fallback: use all columns as composite identity key when no PK/user keys
+            keys = [c.name for c in source_schema.columns]
+            source_names_all = {c.name.casefold() for c in source_schema.columns}
+            target_names_all = {c.name.casefold() for c in target_schema.columns}
+            missing_in_target = [c.name for c in source_schema.columns if c.name.casefold() not in target_names_all]
+            if missing_in_target:
+                raise ValueError("All-column key fallback requires every source column to exist in target; missing: " + ", ".join(missing_in_target))
         source_names = {c.name.casefold() for c in source_schema.columns}
         target_names = {c.name.casefold() for c in target_schema.columns}
         invalid = [k for k in keys if k.casefold() not in source_names or k.casefold() not in target_names]
